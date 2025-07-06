@@ -26,30 +26,32 @@ functions.http('uploadFile', (req, res) => {
   const tmpdir = os.tmpdir();
 
   // This object will accumulate all the fields, keyed by their name
-  const fields = {};
+  // const fields = {};
+  let fitcheckId;
 
   // This object will accumulate all the uploaded files, keyed by their name.
-  const uploads = [];
+  const filePaths = [];
 
-  // // This code will process each non-file field in the form.
-  // busboy.on('field', (fieldname, val) => {
-  //   /**
-  //    *  TODO(developer): Process submitted field values here
-  //    */
-  //   console.log(`Processed field ${fieldname}: ${val}.`);
-  //   fields[fieldname] = val;
-  // });
+  // This code will process each non-file field in the form.
+  busboy.on('field', (fieldname, val) => {
+    /**
+     *  TODO(developer): Process submitted field values here
+     */
+    console.log(`Processed field ${fieldname}: ${val}.`);
+    if (fieldname === 'fitcheckId') {
+      fitcheckId = val;
+    }
+  });
 
   const fileWrites = [];
 
   // This code will process each file uploaded.
   busboy.on('file', (fieldname, file, {filename}) => {
-    console.log('File', file);
     // Note: os.tmpdir() points to an in-memory file system on GCF
     // Thus, any files in it must fit in the instance's memory.
     console.log(`Processed file ${filename}`);
     const filepath = path.join(tmpdir, filename);
-    uploads.push(filepath);
+    filePaths.push({ path: filepath, fileName: filename });
 
     const writeStream = fs.createWriteStream(filepath);
     file.pipe(writeStream);
@@ -73,14 +75,13 @@ functions.http('uploadFile', (req, res) => {
   busboy.on('finish', async () => {
     await Promise.all(fileWrites);
 
+    await uploadManyFilesWithTransferManager(filePaths, fitcheckId);
     /**
      * TODO(developer): Process saved files here
      */
-    for (const filePath of uploads) {
-      fs.unlinkSync(filePath);
+    for (const { path } of filePaths) {
+      fs.unlinkSync(path);
     }
-    uploadManyFilesWithTransferManager(uploads);
-    console.log('Uploads', uploads);
     res.send();
   });
 
