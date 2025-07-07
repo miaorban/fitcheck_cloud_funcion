@@ -4,6 +4,7 @@ const storage = new Storage();
 const bucket = storage.bucket('fitcheck_photos');
 
 async function uploadManyFilesWithTransferManager(filePaths, fitcheckId) {  
+  console.log('Uploading files with Transfer Manager');
   for (const i in filePaths) {
     const options = {
       destination: `${fitcheckId}/${i}_${filePaths[i].fileName}`
@@ -11,6 +12,7 @@ async function uploadManyFilesWithTransferManager(filePaths, fitcheckId) {
     
     try {
       await bucket.upload(filePaths[i].path, options);
+      console.log(`File ${filePaths[i].path} uploaded successfully`);
     } catch (error) {
       console.error(`Error uploading file ${filePaths[i].path}:`, error);
       throw error;

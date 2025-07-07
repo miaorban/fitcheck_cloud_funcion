@@ -74,8 +74,13 @@ functions.http('uploadFile', (req, res) => {
   // We still need to wait for the disk writes (saves) to complete.
   busboy.on('finish', async () => {
     await Promise.all(fileWrites);
-
-    await uploadManyFilesWithTransferManager(filePaths, fitcheckId);
+    console.log('Files uploaded successfully');
+    try {
+      await uploadManyFilesWithTransferManager(filePaths, fitcheckId);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      res.status(500).send('Error uploading files');
+    }
     /**
      * TODO(developer): Process saved files here
      */
