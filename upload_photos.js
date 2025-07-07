@@ -10,14 +10,11 @@ async function uploadManyFilesWithTransferManager(filePaths, fitcheckId) {
       destination: `${fitcheckId}/${i}_${filePaths[i].fileName}`
     };
     
-    try {
-      await bucket.upload(filePaths[i].path, options);
-      console.log(`File ${filePaths[i].path} uploaded successfully`);
-    } catch (error) {
-      console.error(`Error uploading file ${filePaths[i].path}:`, error);
-      throw error;
-    }
+    await bucket.upload(filePaths[i].path, options);
+    console.log(`File ${filePaths[i].path} uploaded successfully`);
   }
 }
+
+uploadManyFilesWithTransferManager().catch(console.error);
 
 module.exports = { uploadManyFilesWithTransferManager };
