@@ -18,77 +18,149 @@ const Busboy = require('busboy');
 const { log } = require('console');
 
 functions.http('uploadFile', (req, res) => {
+  console.log('=== REQUEST STARTED ===');
+  console.log('Method:', req.method);
+  console.log('Content-Type:', req.headers['content-type']);
+
   if (req.method !== 'POST') {
-    // Return a "method not allowed" error
-    return res.status(405).end();
+    return res.status(405).json({ error: 'Method not allowed' });
   }
+
   const busboy = Busboy({headers: req.headers});
   const tmpdir = os.tmpdir();
+  console.log('Temp directory:', tmpdir);
 
-  // This object will accumulate all the fields, keyed by their name
-  // const fields = {};
   let fitcheckId;
-
-  // This object will accumulate all the uploaded files, keyed by their name.
   const filePaths = [];
+  const fileWrites = [];
 
   // This code will process each non-file field in the form.
   busboy.on('field', (fieldname, val) => {
-    /**
-     *  TODO(developer): Process submitted field values here
-     */
     console.log(`Processed field ${fieldname}: ${val}.`);
     if (fieldname === 'fitcheckId') {
       fitcheckId = val;
     }
   });
 
-  const fileWrites = [];
-
   // This code will process each file uploaded.
   busboy.on('file', (fieldname, file, {filename}) => {
-    // Note: os.tmpdir() points to an in-memory file system on GCF
-    // Thus, any files in it must fit in the instance's memory.
-    console.log(`Processed file ${filename}`);
+    console.log(`=== PROCESSING FILE ===`);
+    console.log(`Field name: ${fieldname}`);
+    console.log(`Filename: ${filename}`);
+    
     const filepath = path.join(tmpdir, filename);
+    console.log(`Saving to: ${filepath}`);
+    
     filePaths.push({ path: filepath, fileName: filename });
 
     const writeStream = fs.createWriteStream(filepath);
     file.pipe(writeStream);
 
-    // File was processed by Busboy; wait for it to be written.
-    // Note: GCF may not persist saved files across invocations.
-    // Persistent files must be kept in other locations
-    // (such as Cloud Storage buckets).
     const promise = new Promise((resolve, reject) => {
       file.on('end', () => {
+        console.log(`File stream ended for ${filename}`);
         writeStream.end();
       });
-      writeStream.on('close', resolve);
-      writeStream.on('error', reject);
+      
+      writeStream.on('close', () => {
+        console.log(`Write stream closed for ${filename}`);
+        // Verify file was saved
+        if (fs.existsSync(filepath)) {
+          const stats = fs.statSync(filepath);
+          console.log(`File ${filename} saved successfully, size: ${stats.size} bytes`);
+        } else {
+          console.error(`File ${filename} was not saved properly`);
+        }
+        resolve();
+      });
+      
+      writeStream.on('error', (error) => {
+        console.error(`Write stream error for ${filename}:`, error);
+        reject(error);
+      });
     });
+    
     fileWrites.push(promise);
   });
 
   // Triggered once all uploaded files are processed by Busboy.
-  // We still need to wait for the disk writes (saves) to complete.
   busboy.on('finish', async () => {
-    await Promise.all(fileWrites);
-    console.log('Files uploaded successfully');
+    console.log('=== BUSBOY FINISHED ===');
+    console.log(`Files to process: ${fileWrites.length}`);
+    console.log(`Fitcheck ID: ${fitcheckId}`);
+    
     try {
-      await uploadManyFilesWithTransferManager(filePaths, fitcheckId);
+      // Wait for all files to be written
+      await Promise.all(fileWrites);
+      console.log('All files written to temp directory');
+      
+      // Verify files exist before upload
+      const existingFiles = filePaths.filter(({ path }) => fs.existsSync(path));
+      console.log(`Found ${existingFiles.length} existing files out of ${filePaths.length} total`);
+      
+      if (existingFiles.length === 0) {
+        throw new Error('No files were saved successfully');
+      }
+      
+      // Upload files to Google Cloud Storage
+      console.log('Starting upload to Google Cloud Storage...');
+      await uploadManyFilesWithTransferManager(existingFiles, fitcheckId);
+      console.log('Upload to Google Cloud Storage completed successfully');
+      
+      // Clean up temporary files AFTER upload is complete
+      console.log('Cleaning up temporary files...');
+      for (const { path } of filePaths) {
+        try {
+          if (fs.existsSync(path)) {
+            fs.unlinkSync(path);
+            console.log(`Cleaned up: ${path}`);
+          }
+        } catch (cleanupError) {
+          console.error(`Error cleaning up ${path}:`, cleanupError);
+        }
+      }
+      
+      // Send success response
+      console.log('Sending success response');
+      res.status(200).json({
+        success: true,
+        message: `${existingFiles.length} files uploaded successfully`,
+        fitcheckId: fitcheckId,
+        timestamp: new Date().toISOString()
+      });
+      
     } catch (error) {
-      console.error('Error uploading files:', error);
-      res.status(500).send('Error uploading files');
+      console.error('=== ERROR IN FINISH HANDLER ===');
+      console.error('Error:', error);
+      console.error('Error stack:', error.stack);
+      
+      // Clean up temporary files even if upload fails
+      for (const { path } of filePaths) {
+        try {
+          if (fs.existsSync(path)) {
+            fs.unlinkSync(path);
+          }
+        } catch (cleanupError) {
+          console.error('Error cleaning up file:', cleanupError);
+        }
+      }
+      
+      res.status(500).json({
+        error: 'Upload failed',
+        message: error.message
+      });
     }
-    /**
-     * TODO(developer): Process saved files here
-     */
-    for (const { path } of filePaths) {
-      fs.unlinkSync(path);
-    }
-    res.send();
   });
 
+  // Handle Busboy errors
+  busboy.on('error', (error) => {
+    console.error('Busboy error:', error);
+    res.status(400).json({
+      error: 'Request parsing failed',
+      message: error.message
+    });
+  });
+
+  console.log('Starting to parse request body...');
   busboy.end(req.rawBody);
 });

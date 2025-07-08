@@ -15,6 +15,5 @@ async function uploadManyFilesWithTransferManager(filePaths, fitcheckId) {
   }
 }
 
-uploadManyFilesWithTransferManager().catch(console.error);
 
 module.exports = { uploadManyFilesWithTransferManager };
