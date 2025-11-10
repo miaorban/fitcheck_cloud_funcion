@@ -1,5 +1,5 @@
-const client = new OpenAI();
 async function generateResponse(quizId) {
+  return '123';
 }
 
 app.get('/', async (req, res) => {
