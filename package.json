@@ -1,25 +1,21 @@
 {
-  "name": "fitcheck-cloud-function",
+  "name": "fitcheck_cloud_funcion",
   "version": "1.0.0",
-  "description": "Cloud Function to process images and JSON data",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "functions-framework --target=processImageAndData",
-    "deploy": "gcloud functions deploy processImageAndData --runtime nodejs18 --trigger-http --allow-unauthenticated --entry-point=processImageAndData --source=. --region=us-central1 --memory=512MB --timeout=540s"
-  },
-  "dependencies": {
-    "@google-cloud/functions-framework": "^3.0.0",
-    "@google-cloud/storage": "^7.0.0",
-    "express-fileupload": "^1.4.0"
+    "dev": "nodemon"
   },
   "engines": {
-    "node": "18"
+    "node": ">=16.0.0"
   },
-  "keywords": [
-    "google-cloud-functions",
-    "image-processing",
-    "nodejs"
-  ],
-  "author": "",
-  "license": "MIT"
-} 
+  "author": "Google LLC",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@google-cloud/storage": "^7.16.0",
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
