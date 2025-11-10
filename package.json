@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "dev": "nodemon"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -12,6 +12,10 @@
   "author": "Google LLC",
   "license": "Apache-2.0",
   "dependencies": {
+    "@google-cloud/storage": "^7.16.0",
     "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

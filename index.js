@@ -1,9 +1,11 @@
-import express from 'express';
-const app = express();
+const client = new OpenAI();
+async function generateResponse(quizId) {
+}
 
-app.get('/', (req, res) => {
-  const name = process.env.NAME || 'World';
-  res.send(`Hello ${name}!`);
+app.get('/', async (req, res) => {
+  const quizId = req.query.quizId;
+  const response = await generateResponse(quizId);
+  res.send(response);
 });
 
 const port = parseInt(process.env.PORT) || 8080;
